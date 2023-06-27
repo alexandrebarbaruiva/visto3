@@ -12,15 +12,20 @@
 #define TRUE 1
 #define VRX 0 //Indicar canal VRx
 #define VRY 1 //Indicar canal VRy
+#define SMIN 524
+#define SMAX 2621
+#define DBC 1000
 #define FECHADA 0 //SW fechada
 #define ABERTA 1 //SW aberta
 #define DBC 1000 //Debounce
+
 // Funções
 void leds(char x);
 int sw_mon(void);
 void ADC_config(void);
 void TA0_config(void);
 void GPIO_config(void);
+void move_servo(int dist);
 void debounce(int valor);
 
 volatile int media_x, media_y;
@@ -40,7 +45,7 @@ int main(void){
     while(TRUE){
         if (sw_mon() == TRUE){
             canal ^= 1; //Inverter
-            min_val = 4.0;
+            min_val = 3.4;
             max_val = 0.0;
         }
 
@@ -58,12 +63,12 @@ int main(void){
             lcd_str("1=");
             lcd_float(vx, 3);
             lcd_str("V");
-
             lcd_cursor(12);
             lcd_dec_only(vx);
 
             if (vx < min_val) min_val = vx;
             if (vx > max_val) max_val = vx;
+            move_servo((int) (vx * 10));
         }
         else {
             lcd_str("2=");
@@ -75,6 +80,7 @@ int main(void){
 
             if (vy < min_val) min_val = vy;
             if (vy > max_val) max_val = vy;
+            move_servo((int) (vy * 10));
         }
 
         lcd_cursor(16);
@@ -131,6 +137,14 @@ int sw_mon(void){
     return FALSE;
 }
 
+void move_servo(int dist)
+{
+    if(dist <= 50){
+        TA2CCR2 = ( (long)2097 * (50 - dist) ) / 50 + 524;
+    }
+}
+
+
 void ADC_config(void){
     volatile unsigned char *pt;
     unsigned char i;
@@ -172,10 +186,18 @@ void GPIO_config(void){
     P6DIR &= ~BIT3; //P6.3 = SW -> Joystick
     P6REN |= BIT3;
     P6OUT |= BIT3;
+
+    // SERVO ===============================
+    P2DIR |= BIT5;
+    P2SEL |= BIT5
+            TA2CTL = TASSEL_2 | MC__UP | TACLR; //
+    TA2CCR0 = 20971;                    //
+    TA2CCTL2 = OUTMOD_6;                //
+    TA2CCR2 = SMIN;                     // SETA SERVO PARA 0
+    // !SERVO ==============================
 }
 // Debounce
 void debounce(int valor){
     volatile int x; //volatile evita optimizador
     for (x=0; x<valor; x++); //Apenas gasta tempo
 }
-
